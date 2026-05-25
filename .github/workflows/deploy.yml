@@ -36,4 +36,4 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: dist # Vite outputs the compiled app to the 'dist' folder
-          branch: gh-pages # Pushes the static assets to a dedicated gh-pages branch
+          branch: main # Pushes the static assets to a dedicated gh-pages branch
