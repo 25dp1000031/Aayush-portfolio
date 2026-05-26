@@ -12,6 +12,7 @@
         <div class="bar-left">
           <span class="bar-pulse"></span>
           <span class="bar-label">Admin — Live Editor</span>
+          <DbStatusBadge />
           <span v-if="isDirty" class="bar-dirty">
             <i class="fas fa-circle" style="font-size:0.45rem"></i> Unsaved changes
           </span>
@@ -36,7 +37,7 @@
             @click="handleCommit"
           >
             <i :class="committing ? 'fas fa-spinner fa-spin' : 'fas fa-cloud-upload-alt'"></i>
-            {{ committing ? 'Committing...' : 'Commit Changes to Production' }}
+            {{ commitButtonText }}
           </button>
 
           <button class="btn-signout" title="Sign out" @click="handleSignOut">
@@ -50,28 +51,53 @@
 </template>
 
 <script setup>
-import { ref }             from 'vue'
-import { storeToRefs }     from 'pinia'
-import { useAuthStore }    from '@/stores/auth'
+import { ref, computed } from 'vue'
+import { storeToRefs }   from 'pinia'
+import { useAuthStore }  from '@/stores/auth'
 import { usePortfolioStore } from '@/stores/portfolio'
+import DbStatusBadge     from './DbStatusBadge.vue'
 
 const authStore      = useAuthStore()
 const portfolioStore = usePortfolioStore()
 
-const { isAdmin }  = storeToRefs(authStore)
-const { isDirty }  = storeToRefs(portfolioStore)
+const { isAdmin }            = storeToRefs(authStore)
+const { isDirty, projects, experience } = storeToRefs(portfolioStore)
 
 const committing  = ref(false)
+const commitPhase = ref('')      // dynamic phase shown while syncing
 const commitMsg   = ref('')
 const commitOk    = ref(true)
 
+// Dynamic loading text — cycles through the actual sync phases so the
+// operator sees what's happening per click rather than a generic spinner.
+const commitButtonText = computed(() => {
+  if (!committing.value) return 'Commit Changes to Production'
+  return commitPhase.value || 'Synchronizing...'
+})
+
 async function handleCommit() {
   committing.value = true
-  const result = await portfolioStore.commitToDatabase()
-  committing.value = false
-  commitOk.value  = result.ok
-  commitMsg.value = result.ok ? '✓ Committed to Supabase' : `✗ ${result.msg}`
-  setTimeout(() => { commitMsg.value = '' }, 4000)
+  commitPhase.value = `Syncing ${projects.value.length} projects…`
+
+  // Stagger the visible phase text so the user sees progression even on fast networks
+  const phaseTimer = setTimeout(() => {
+    commitPhase.value = `Syncing ${experience.value.length} experience rows…`
+  }, 400)
+  const finalPhase = setTimeout(() => {
+    commitPhase.value = 'Persisting jsonb snapshot…'
+  }, 800)
+
+  const result = await portfolioStore.commitChanges()
+
+  clearTimeout(phaseTimer)
+  clearTimeout(finalPhase)
+  committing.value  = false
+  commitPhase.value = ''
+  commitOk.value    = result.ok
+  commitMsg.value   = result.ok
+    ? `✓ ${result.msg ?? 'Committed to Supabase'}`
+    : `✗ ${result.msg}`
+  setTimeout(() => { commitMsg.value = '' }, 5000)
 }
 
 async function handleDiscard() {

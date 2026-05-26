@@ -10,48 +10,62 @@
              Triple-click triggers the admin authentication modal -->
         <div class="status-pill" @click="handleStatusClick">
           <span class="dot"></span>
-          <AdminField v-model="hero.status">
-            <span>{{ hero.status }}</span>
-          </AdminField>
+          <span
+            class="ce-edit"
+            :contenteditable="isAdmin"
+            @blur="(e) => portfolioStore.onEdit(hero, 'status', e.target.innerText)"
+          >{{ hero.status }}</span>
         </div>
 
-        <!-- Name + role -->
+        <!-- Name (editable as one block; the split into firstName/lastName is
+             read-only display logic that runs against hero.name) -->
         <h1 class="hero-name">
-          <AdminField v-model="hero.name">
-            <template #default>
-              {{ firstName }}<br />
-              <span class="name-accent">{{ lastName }}</span>
-            </template>
-          </AdminField>
-          <!-- When admin is editing the full name appears as one input -->
-          <span v-if="!isAdmin" style="display:none"></span>
+          <template v-if="!isAdmin">
+            {{ firstName }}<br />
+            <span class="name-accent">{{ lastName }}</span>
+          </template>
+          <span
+            v-else
+            class="ce-edit"
+            :contenteditable="isAdmin"
+            @blur="(e) => portfolioStore.onEdit(hero, 'name', e.target.innerText)"
+          >{{ hero.name }}</span>
         </h1>
 
-        <p class="hero-role">
-          <AdminField v-model="hero.title">{{ hero.title }}</AdminField>
-        </p>
-        <p class="hero-tagline">
-          <AdminField v-model="hero.tagline">{{ hero.tagline }}</AdminField>
-        </p>
+        <p
+          class="hero-role ce-edit"
+          :contenteditable="isAdmin"
+          @blur="(e) => portfolioStore.onEdit(hero, 'title', e.target.innerText)"
+        >{{ hero.title }}</p>
+
+        <p
+          class="hero-tagline ce-edit"
+          :contenteditable="isAdmin"
+          @blur="(e) => portfolioStore.onEdit(hero, 'tagline', e.target.innerText)"
+        >{{ hero.tagline }}</p>
 
         <!-- Credential badge row -->
         <div class="badge-row">
           <span
-            v-for="b in hero.badges"
-            :key="b.label"
+            v-for="(b, bi) in hero.badges"
+            :key="bi"
             :class="['badge', `badge-${b.variant}`]"
           >
             <i :class="b.icon"></i>
-            <AdminField v-model="b.label">{{ b.label }}</AdminField>
+            <span
+              class="ce-edit"
+              :contenteditable="isAdmin"
+              @blur="(e) => portfolioStore.onEdit(b, 'label', e.target.innerText)"
+            >{{ b.label }}</span>
           </span>
         </div>
 
         <!-- Summary -->
-        <p class="hero-summary">
-          <AdminField v-model="hero.summary" :multiline="true" :rows="4">
-            {{ hero.summary }}
-          </AdminField>
-        </p>
+        <p
+          class="hero-summary ce-edit ce-block"
+          :contenteditable="isAdmin"
+          @blur="(e) => portfolioStore.onEdit(hero, 'summary', e.target.innerText)"
+        >{{ hero.summary }}</p>
 
         <!-- CTAs -->
         <div class="cta-row">
@@ -71,7 +85,7 @@
           <a href="https://github.com/its-tsukii" target="_blank" rel="noopener" aria-label="GitHub">
             <i class="fab fa-github"></i>
           </a>
-          <a href="https://www.linkedin.com/in/aayush-kukade" target="_blank" rel="noopener" aria-label="LinkedIn">
+          <a href="https://www.linkedin.com/in/aayushkukade/" target="_blank" rel="noopener" aria-label="LinkedIn">
             <i class="fab fa-linkedin"></i>
           </a>
           <a href="https://medium.com/@sroy10012001" target="_blank" rel="noopener" aria-label="Medium">
@@ -97,11 +111,10 @@
 </template>
 
 <script setup>
-import { ref, computed }     from 'vue'
+import { computed }          from 'vue'
 import { storeToRefs }       from 'pinia'
 import TerminalWidget         from './TerminalWidget.vue'
 import PipelineVisualizer     from './PipelineVisualizer.vue'
-import AdminField             from './AdminField.vue'
 import { usePortfolioStore }  from '@/stores/portfolio'
 import { useAuthStore }       from '@/stores/auth'
 import { useUIStore }         from '@/stores/ui'

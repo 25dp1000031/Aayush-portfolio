@@ -13,10 +13,10 @@
         <p class="section-sub">Projects as architectural breakdowns — not just screenshots</p>
       </div>
 
-      <!-- Admin: add project -->
+      <!-- Admin: add a new project row -->
       <div v-if="isAdmin" class="admin-toolbar">
         <button class="btn-add" @click="portfolioStore.addProject()">
-          <i class="fas fa-plus"></i> Add Project
+          <i class="fas fa-plus"></i> Add New Project
         </button>
       </div>
 
@@ -45,13 +45,28 @@ const { projects }   = storeToRefs(portfolioStore)
 const { isAdmin }    = storeToRefs(useAuthStore())
 
 // Merge store (editable) data with static arch/api assets from projects.js.
-// Matching is positional: index 0 in store → index 0 in PROJECTS file.
-// This keeps heavy SVG/Swagger mocks out of Supabase while keeping metadata editable.
+// Matching is by normalized project NAME so reordering / inserting in the
+// store doesn't break the SVG/Swagger pairings. The `index` field is
+// always stripped from the static merge so the positional badge ('01',
+// '02', …) reflects the project's order in the section.
+//
+// NULL-SAFETY: DB rows can have null values for fields that weren't
+// explicitly committed.  We strip those nulls before spreading so the
+// static archFlow / apiDocs / period survive even when the DB row has
+// null for those columns.
+const slug = (s) => String(s ?? '').toLowerCase().trim()
+const nonNull = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v != null))
+
 const mergedProjects = computed(() =>
-  projects.value.map((storeProj, i) => ({
-    ...(PROJECTS[i] ?? {}),   // static: index, archFlow, apiDocs (may be undefined)
-    ...storeProj,             // editable: name, tagline, stack, highlights, etc.
-  }))
+  projects.value.map((storeProj, i) => {
+    const staticMatch = PROJECTS.find(p => slug(p.name) === slug(storeProj.name))
+    const { index, ...staticData } = staticMatch ?? {}
+    return {
+      ...staticData,          // archFlow + apiDocs (static, always present)
+      ...nonNull(storeProj),  // editable fields win — but nulls don't erase statics
+      index: String(i + 1).padStart(2, '0'),  // positional badge always reflects order
+    }
+  })
 )
 </script>
 

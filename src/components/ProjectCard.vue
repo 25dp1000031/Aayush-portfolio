@@ -1,5 +1,8 @@
 <template>
-  <!-- Individual project card: header, arch flow, highlights, API docs -->
+  <!--
+    Individual project card — every editable string is bound via
+    :contenteditable="isAdmin" + @blur for two-way state binding.
+  -->
   <div class="project-card reveal" :data-delay="delay">
 
     <!-- Admin: delete this project -->
@@ -9,24 +12,36 @@
       title="Remove project"
       @click="portfolioStore.removeProject(project.id)"
     >
-      <i class="fas fa-times"></i> Remove
+      <i class="fas fa-times"></i> Delete
     </button>
 
     <!-- ── Header ── -->
     <div class="card-header">
       <div class="proj-index">{{ project.index ?? String(idx + 1).padStart(2, '0') }}</div>
+
       <div class="proj-title-block">
-        <h3 class="proj-name">
-          <AdminField v-model="project.name">{{ project.name }}</AdminField>
-        </h3>
-        <p class="proj-tagline">
-          <AdminField v-model="project.tagline">{{ project.tagline }}</AdminField>
-        </p>
+        <h3
+          class="proj-name ce-edit"
+          :contenteditable="isAdmin"
+          @blur="(e) => portfolioStore.onEdit(project, 'name', e.target.innerText)"
+        >{{ project.name }}</h3>
+
+        <p
+          class="proj-tagline ce-edit"
+          :contenteditable="isAdmin"
+          @blur="(e) => portfolioStore.onEdit(project, 'tagline', e.target.innerText)"
+        >{{ project.tagline }}</p>
+
         <span class="proj-affiliation">
           <i class="fas fa-link"></i>
-          <AdminField v-model="project.affiliation" style="min-width:180px">{{ project.affiliation }}</AdminField>
+          <span
+            class="ce-edit"
+            :contenteditable="isAdmin"
+            @blur="(e) => portfolioStore.onEdit(project, 'affiliation', e.target.innerText)"
+          >{{ project.affiliation }}</span>
         </span>
       </div>
+
       <div class="proj-links">
         <a :href="project.github" target="_blank" rel="noopener" class="link-btn">
           <i class="fab fa-github"></i> GitHub
@@ -37,7 +52,17 @@
       </div>
     </div>
 
-    <!-- ── Architecture flow diagram (static SVG, not store-driven) ── -->
+    <!-- ── Description (admin only — view mode hides it since tagline covers the use case) ── -->
+    <div v-if="isAdmin && project.description !== undefined" class="card-section desc-section">
+      <span class="desc-label">// description</span>
+      <p
+        class="proj-desc ce-edit ce-block"
+        :contenteditable="isAdmin"
+        @blur="(e) => portfolioStore.onEdit(project, 'description', e.target.innerText)"
+      >{{ project.description }}</p>
+    </div>
+
+    <!-- ── Architecture flow diagram (static SVG) ── -->
     <div v-if="project.archFlow" class="card-section">
       <ArchFlowDiagram :flow="project.archFlow" :projectName="project.name" />
     </div>
@@ -55,19 +80,25 @@
 
         <div
           v-for="(h, hi) in project.highlights"
-          :key="h.title + hi"
+          :key="hi"
           class="highlight"
         >
-          <!-- colour is always a hex value from the store -->
           <i :class="h.icon" :style="{ color: h.color }" class="h-icon"></i>
+
           <div class="h-content">
-            <strong class="h-title">
-              <AdminField v-model="h.title">{{ h.title }}</AdminField>
-            </strong>
-            <p class="h-desc">
-              <AdminField v-model="h.desc" :multiline="true" :rows="2">{{ h.desc }}</AdminField>
-            </p>
+            <strong
+              class="h-title ce-edit"
+              :contenteditable="isAdmin"
+              @blur="(e) => portfolioStore.onEdit(h, 'title', e.target.innerText)"
+            >{{ h.title }}</strong>
+
+            <p
+              class="h-desc ce-edit ce-block"
+              :contenteditable="isAdmin"
+              @blur="(e) => portfolioStore.onEdit(h, 'desc', e.target.innerText)"
+            >{{ h.desc }}</p>
           </div>
+
           <button
             v-if="isAdmin"
             class="btn-del-highlight"
@@ -79,25 +110,29 @@
         </div>
       </div>
 
-      <!-- Stack pills -->
+      <!-- Stack
+           Each tech is its own pill with inline contenteditable + delete.
+           In admin mode a [+ Add] button appears at the end of the list. -->
       <div class="stack-pills">
-        <div class="pills-wrap">
+        <span
+          v-for="(s, si) in project.stack"
+          :key="si"
+          class="pill"
+        >
           <span
-            v-for="(s, si) in project.stack"
-            :key="si"
-            class="pill"
+            class="ce-edit pill-label"
+            :contenteditable="isAdmin"
+            @blur="(e) => onStackBlur(project, si, e.target.innerText)"
+          >{{ s }}</span>
+          <button
+            v-if="isAdmin"
+            class="btn-del-pill"
+            @click="portfolioStore.removeProjectStackItem(project.id, si)"
+            title="Remove"
           >
-            <AdminField v-model="project.stack[si]" style="min-width:40px">{{ s }}</AdminField>
-            <button
-              v-if="isAdmin"
-              class="btn-del-pill"
-              @click="portfolioStore.removeProjectStackItem(project.id, si)"
-              title="Remove"
-            >
-              <i class="fas fa-times"></i>
-            </button>
-          </span>
-        </div>
+            <i class="fas fa-times"></i>
+          </button>
+        </span>
         <button
           v-if="isAdmin"
           class="btn-add-pill"
@@ -108,7 +143,7 @@
       </div>
     </div>
 
-    <!-- ── Interactive API documentation block (static, not store-driven) ── -->
+    <!-- ── Interactive API documentation block (static) ── -->
     <div v-if="project.apiDocs" class="card-section api-section">
       <ApiDocBlock :docs="project.apiDocs" />
     </div>
@@ -120,7 +155,6 @@
 import { storeToRefs }       from 'pinia'
 import ArchFlowDiagram       from './ArchFlowDiagram.vue'
 import ApiDocBlock           from './ApiDocBlock.vue'
-import AdminField            from './AdminField.vue'
 import { usePortfolioStore } from '@/stores/portfolio'
 import { useAuthStore }      from '@/stores/auth'
 
@@ -132,6 +166,15 @@ defineProps({
 
 const portfolioStore = usePortfolioStore()
 const { isAdmin }    = storeToRefs(useAuthStore())
+
+// Per-stack-item blur — string array, mutate by index
+function onStackBlur(project, idx, value) {
+  const v = String(value).trim()
+  if (!project?.stack) return
+  if (project.stack[idx] === v) return
+  project.stack[idx] = v
+  portfolioStore.markDirty()
+}
 </script>
 
 <style scoped>
@@ -173,7 +216,7 @@ const { isAdmin }    = storeToRefs(useAuthStore())
   color       : var(--border-color); line-height: 1; flex-shrink: 0; min-width: 48px;
 }
 
-.proj-title-block { flex: 1; }
+.proj-title-block { flex: 1; min-width: 0; }
 .proj-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 3px; }
 .proj-tagline { font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 6px; }
 .proj-affiliation {
@@ -190,6 +233,17 @@ const { isAdmin }    = storeToRefs(useAuthStore())
 }
 .link-btn:hover { color: var(--text-primary); border-color: var(--accent-green); background: rgba(16,185,129,0.06); }
 .link-btn.live  { color: var(--accent-green); border-color: rgba(16,185,129,0.3); }
+
+/* Description (admin-only block) */
+.desc-section {
+  background: rgba(16, 185, 129, 0.02);
+}
+.desc-label {
+  display: block;
+  font-family: var(--font-mono); font-size: 0.65rem;
+  color: var(--accent-green); margin-bottom: 6px;
+}
+.proj-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.65; }
 
 /* Sections */
 .card-section { padding: 20px 28px; border-bottom: 1px solid var(--border-color); }
@@ -225,7 +279,7 @@ const { isAdmin }    = storeToRefs(useAuthStore())
 .h-icon { font-size: 0.88rem; margin-top: 2px; flex-shrink: 0; width: 14px; }
 /* colour driven by :style="{ color: h.color }" in template */
 
-.h-content { flex: 1; }
+.h-content { flex: 1; min-width: 0; }
 .h-title { display: block; font-size: 0.84rem; margin-bottom: 2px; }
 .h-desc  { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.55; }
 
@@ -240,40 +294,41 @@ const { isAdmin }    = storeToRefs(useAuthStore())
 .highlight:hover .btn-del-highlight { opacity: 1; }
 .btn-del-highlight:hover { background: rgba(239,68,68,0.22); }
 
-/* Stack pills */
+/* Stack */
 .stack-pills {
-  display       : flex; flex-direction: column; gap: 6px;
+  display       : flex; flex-direction: column; gap: 5px;
   flex-shrink   : 0; min-width: 130px;
+  align-items   : flex-start;
 }
-.pills-wrap { display: flex; flex-direction: column; gap: 4px; }
 .pill {
-  white-space  : nowrap; display: inline-flex; align-items: center;
-  gap          : 4px;
+  white-space  : nowrap; display: inline-flex; align-items: center; gap: 5px;
   font-family  : var(--font-mono); font-size: 0.75rem;
   background   : rgba(16,185,129,0.06); color: var(--text-secondary);
   border       : 1px solid var(--border-color); padding: 3px 10px;
   border-radius: var(--radius-xs);
 }
+.pill-label { display: inline-block; }
 .btn-del-pill {
   width: 12px; height: 12px; border-radius: 50%;
   background: rgba(239,68,68,0.08); color: var(--accent-red);
-  border: 1px solid rgba(239,68,68,0.2);
+  border: 1px solid rgba(239,68,68,0.22);
   display: flex; align-items: center; justify-content: center;
   font-size: 0.45rem; cursor: pointer; transition: all 0.2s;
 }
 .btn-del-pill:hover { background: rgba(239,68,68,0.22); }
 .btn-add-pill {
-  display     : inline-flex; align-items: center; gap: 5px;
-  font-family : var(--font-mono); font-size: 0.65rem;
-  color       : var(--accent-green); border: 1px dashed rgba(16,185,129,0.35);
-  padding     : 3px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;
+  display      : inline-flex; align-items: center; gap: 5px;
+  font-family  : var(--font-mono); font-size: 0.65rem;
+  color        : var(--accent-green);
+  border       : 1px dashed rgba(16,185,129,0.35);
+  padding      : 3px 9px; border-radius: 4px;
+  cursor       : pointer; transition: all 0.2s;
 }
 .btn-add-pill:hover { background: rgba(16,185,129,0.08); }
 
 /* Responsive */
 @media (max-width: 700px) {
-  .card-body     { grid-template-columns: 1fr; }
-  .stack-pills   { flex-direction: row; flex-wrap: wrap; }
-  .pills-wrap    { flex-direction: row; flex-wrap: wrap; }
+  .card-body   { grid-template-columns: 1fr; }
+  .stack-pills { flex-direction: row; flex-wrap: wrap; }
 }
 </style>

@@ -55,6 +55,7 @@
 
         <!-- Status bar -->
         <div class="status-bar">
+          <DbStatusBadge />
           <span class="sb-item" :class="portfolioStore.loading ? 'active' : 'idle'">
             <span class="sb-dot"></span>
             {{ portfolioStore.loading ? 'loading…' : 'idle' }}
@@ -89,6 +90,7 @@ import { ref }               from 'vue'
 import { useUIStore }        from '@/stores/ui'
 import { usePortfolioStore } from '@/stores/portfolio'
 import SkillsChart           from './SkillsChart.vue'
+import DbStatusBadge         from './DbStatusBadge.vue'
 
 const uiStore        = useUIStore()
 const portfolioStore = usePortfolioStore()

@@ -7,10 +7,10 @@
         <h2 class="section-title">Work Experience</h2>
       </div>
 
-      <!-- Admin: add a new job -->
+      <!-- Admin: add a new job entry -->
       <div v-if="isAdmin" class="admin-toolbar">
         <button class="btn-add" @click="portfolioStore.addExperienceJob()">
-          <i class="fas fa-plus"></i> Add Job
+          <i class="fas fa-plus"></i> Add New Job
         </button>
       </div>
 
@@ -31,26 +31,40 @@
               title="Remove job"
               @click="portfolioStore.removeExperienceJob(job.id)"
             >
-              <i class="fas fa-times"></i> Remove Entry
+              <i class="fas fa-times"></i> Delete
             </button>
 
             <div class="exp-header">
               <div>
-                <h3 class="exp-role">
-                  <AdminField v-model="job.role">{{ job.role }}</AdminField>
-                </h3>
+                <h3
+                  class="exp-role ce-edit"
+                  :contenteditable="isAdmin"
+                  @blur="(e) => portfolioStore.onEdit(job, 'role', e.target.innerText)"
+                >{{ job.role }}</h3>
                 <p class="exp-company">
                   <i class="fas fa-building"></i>
-                  <AdminField v-model="job.company">{{ job.company }}</AdminField>
+                  <span
+                    class="ce-edit"
+                    :contenteditable="isAdmin"
+                    @blur="(e) => portfolioStore.onEdit(job, 'company', e.target.innerText)"
+                  >{{ job.company }}</span>
                 </p>
               </div>
               <div class="exp-meta">
                 <span class="exp-period">
                   <i class="fas fa-calendar-alt"></i>
-                  <AdminField v-model="job.period" style="min-width:140px">{{ job.period }}</AdminField>
+                  <span
+                    class="ce-edit"
+                    :contenteditable="isAdmin"
+                    @blur="(e) => portfolioStore.onEdit(job, 'period', e.target.innerText)"
+                  >{{ job.period }}</span>
                 </span>
                 <span class="exp-badge">
-                  <AdminField v-model="job.location" style="min-width:100px">{{ job.location }}</AdminField>
+                  <span
+                    class="ce-edit"
+                    :contenteditable="isAdmin"
+                    @blur="(e) => portfolioStore.onEdit(job, 'location', e.target.innerText)"
+                  >{{ job.location }}</span>
                 </span>
               </div>
             </div>
@@ -58,7 +72,7 @@
             <!-- Bullets -->
             <div v-if="isAdmin" class="admin-toolbar-inline">
               <button class="btn-add-inline" @click="portfolioStore.addBullet(job.id)">
-                <i class="fas fa-plus"></i> Add Bullet
+                <i class="fas fa-plus"></i> Add Bullet Point
               </button>
             </div>
 
@@ -76,32 +90,33 @@
                 >
                   <i class="fas fa-times"></i>
                 </button>
-                <AdminField
-                  v-model="job.bullets[bi]"
-                  :multiline="true"
-                  :rows="2"
-                  class="bullet-field"
-                >
-                  {{ bullet }}
-                </AdminField>
+                <span
+                  class="bullet-text ce-edit ce-block"
+                  :contenteditable="isAdmin"
+                  @blur="(e) => onBulletBlur(job.id, bi, e.target.innerText)"
+                >{{ bullet }}</span>
               </li>
             </ul>
 
-            <!-- Tags -->
+            <!-- Tags
+                 Each tag is its own pill with inline contenteditable + delete.
+                 In admin mode a [+ Add Tag] button appears at the end. -->
             <div class="exp-tags">
               <span
                 v-for="(tag, ti) in (job.tags ?? [])"
                 :key="ti"
                 class="tag-item"
               >
-                <AdminField
-                  v-model="job.tags[ti]"
-                  style="min-width:40px; max-width:100px;"
-                >{{ tag }}</AdminField>
+                <span
+                  class="ce-edit"
+                  :contenteditable="isAdmin"
+                  @blur="(e) => onTagBlur(job.id, ti, e.target.innerText)"
+                >{{ tag }}</span>
                 <button
                   v-if="isAdmin"
                   class="btn-del-tag"
                   @click="portfolioStore.removeTag(job.id, ti)"
+                  title="Delete tag"
                 >
                   <i class="fas fa-times"></i>
                 </button>
@@ -110,6 +125,7 @@
                 v-if="isAdmin"
                 class="btn-add-tag"
                 @click="portfolioStore.addTag(job.id)"
+                title="Add tag"
               >
                 <i class="fas fa-plus"></i>
               </button>
@@ -127,11 +143,30 @@
 import { storeToRefs }       from 'pinia'
 import { usePortfolioStore } from '@/stores/portfolio'
 import { useAuthStore }      from '@/stores/auth'
-import AdminField            from './AdminField.vue'
 
 const portfolioStore = usePortfolioStore()
 const { experience } = storeToRefs(portfolioStore)
 const { isAdmin }    = storeToRefs(useAuthStore())
+
+// Custom blur for bullet array items (index-based, not field-based)
+function onBulletBlur(jobId, idx, value) {
+  const job = experience.value.find(j => j.id === jobId)
+  if (!job) return
+  const v = String(value).trim()
+  if (job.bullets[idx] === v) return
+  job.bullets[idx] = v
+  portfolioStore.markDirty()
+}
+
+// Per-tag blur — updates a single tag in the array by index
+function onTagBlur(jobId, idx, value) {
+  const job = experience.value.find(j => j.id === jobId)
+  if (!job?.tags) return
+  const v = String(value).trim()
+  if (job.tags[idx] === v) return
+  job.tags[idx] = v
+  portfolioStore.markDirty()
+}
 </script>
 
 <style scoped>
@@ -224,10 +259,10 @@ const { isAdmin }    = storeToRefs(useAuthStore())
 .bullets { list-style: none; margin-bottom: 20px; }
 .bullet-item {
   display: flex; align-items: flex-start; gap: 8px;
-  padding: 4px 0 4px 0; position: relative;
+  padding: 4px 0; position: relative;
 }
 .bullet-item::before { content: '▸'; color: var(--accent-green); flex-shrink: 0; margin-top: 1px; }
-.bullet-field { flex: 1; font-size: 0.88rem; color: var(--text-secondary); }
+.bullet-text { flex: 1; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; }
 
 .btn-del-bullet {
   flex-shrink: 0; width: 16px; height: 16px; border-radius: 50%;
@@ -243,7 +278,7 @@ const { isAdmin }    = storeToRefs(useAuthStore())
 /* Tags */
 .exp-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .tag-item {
-  display: inline-flex; align-items: center; gap: 3px;
+  display: inline-flex; align-items: center; gap: 4px;
   font-family: var(--font-mono); font-size: 0.7rem;
   padding: 2px 8px; border-radius: var(--radius-xs);
   background: var(--bg-secondary); color: var(--text-muted);
@@ -256,7 +291,7 @@ const { isAdmin }    = storeToRefs(useAuthStore())
   display: flex; align-items: center; justify-content: center;
   font-size: 0.48rem; cursor: pointer; transition: all 0.2s;
 }
-.btn-del-tag:hover { background: rgba(239,68,68,0.2); }
+.btn-del-tag:hover { background: rgba(239,68,68,0.22); }
 .btn-add-tag {
   width: 22px; height: 22px; border-radius: 50%;
   background: rgba(16,185,129,0.08); color: var(--accent-green);

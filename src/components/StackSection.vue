@@ -38,28 +38,50 @@
 
             <div class="card-icon"><i :class="group.icon"></i></div>
 
-            <h3 class="card-title">
-              <AdminField v-model="group.title">{{ group.title }}</AdminField>
-            </h3>
+            <h3
+              class="card-title ce-edit"
+              :contenteditable="isAdmin"
+              @blur="(e) => portfolioStore.onEdit(group, 'title', e.target.innerText)"
+            >{{ group.title }}</h3>
 
+            <!-- Skills
+                 View mode: chip rendering, one per skill
+                 Edit mode: a single comma-separated list of labels per spec -->
             <div class="tags">
-              <span
-                v-for="skill in group.skills"
-                :key="skill.id"
-                class="skill-tag"
-                :class="skill.accent"
-              >
-                <i v-if="skill.icon" :class="skill.icon"></i>
-                <AdminField v-model="skill.label" style="min-width:30px">{{ skill.label }}</AdminField>
-                <button
-                  v-if="isAdmin"
-                  class="btn-del-skill"
-                  @click="portfolioStore.removeSkillItem(group.id, skill.id)"
-                  title="Remove skill"
+              <template v-if="!isAdmin">
+                <span
+                  v-for="skill in group.skills"
+                  :key="skill.id"
+                  class="skill-tag"
+                  :class="skill.accent"
                 >
-                  <i class="fas fa-times"></i>
-                </button>
-              </span>
+                  <i v-if="skill.icon" :class="skill.icon"></i>
+                  {{ skill.label }}
+                </span>
+              </template>
+
+              <template v-else>
+                <span
+                  v-for="skill in group.skills"
+                  :key="skill.id"
+                  class="skill-tag"
+                  :class="skill.accent"
+                >
+                  <i v-if="skill.icon" :class="skill.icon"></i>
+                  <span
+                    class="ce-edit"
+                    :contenteditable="isAdmin"
+                    @blur="(e) => portfolioStore.onEdit(skill, 'label', e.target.innerText)"
+                  >{{ skill.label }}</span>
+                  <button
+                    class="btn-del-skill"
+                    @click="portfolioStore.removeSkillItem(group.id, skill.id)"
+                    title="Remove skill"
+                  >
+                    <i class="fas fa-times"></i>
+                  </button>
+                </span>
+              </template>
             </div>
 
             <!-- Admin: add skill item -->
@@ -74,7 +96,7 @@
           </div>
         </div>
 
-        <!-- Proficiency radar (right) -->
+        <!-- Proficiency radar (right) — already store-driven via SkillsChart.vue -->
         <div class="radar-col reveal from-right" data-delay="200">
           <SkillsChart />
         </div>
@@ -87,7 +109,6 @@
 <script setup>
 import { storeToRefs }       from 'pinia'
 import SkillsChart           from './SkillsChart.vue'
-import AdminField            from './AdminField.vue'
 import { usePortfolioStore } from '@/stores/portfolio'
 import { useAuthStore }      from '@/stores/auth'
 
@@ -112,7 +133,7 @@ const { isAdmin }    = storeToRefs(useAuthStore())
 }
 .btn-add:hover { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.6); }
 
-/* Two-column layout: 2/3 grid | 1/3 chart */
+/* Two-column layout */
 .engine-layout {
   display               : grid;
   grid-template-columns : 1fr 340px;
@@ -120,7 +141,6 @@ const { isAdmin }    = storeToRefs(useAuthStore())
   align-items           : start;
 }
 
-/* Skills grid: 3 columns inside left column */
 .stack-grid {
   display               : grid;
   grid-template-columns : repeat(3, 1fr);
@@ -141,7 +161,6 @@ const { isAdmin }    = storeToRefs(useAuthStore())
   box-shadow   : var(--shadow-glow);
 }
 
-/* Delete group button */
 .btn-del-group {
   position  : absolute; top: 8px; right: 8px;
   width     : 20px; height: 20px; border-radius: 50%;
@@ -193,7 +212,6 @@ const { isAdmin }    = storeToRefs(useAuthStore())
 }
 .btn-add-skill:hover { background: rgba(16,185,129,0.08); }
 
-/* Radar column */
 .radar-col { position: sticky; top: 88px; }
 
 /* Responsive */

@@ -234,7 +234,7 @@ function lineClass(line) {
 
 const SOCIALS = [
   { icon: 'fab fa-github',   label: 'GitHub',   handle: 'its-tsukii',           href: 'https://github.com/its-tsukii' },
-  { icon: 'fab fa-linkedin', label: 'LinkedIn', handle: 'aayush-kukade',         href: 'https://www.linkedin.com/in/aayush-kukade' },
+  { icon: 'fab fa-linkedin', label: 'LinkedIn', handle: 'aayushkukade',          href: 'https://www.linkedin.com/in/aayushkukade/' },
   { icon: 'fab fa-medium',   label: 'Medium',   handle: '@sroy10012001',          href: 'https://medium.com/@sroy10012001' },
   { icon: 'fas fa-envelope', label: 'Email',    handle: 'Drop a direct message', href: 'mailto:aayushkukade@example.com' },
 ]
